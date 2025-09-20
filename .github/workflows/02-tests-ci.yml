@@ -42,6 +42,7 @@ jobs:
         run: |
           echo "Cobertura mínima não atendida: Esperado - ${{ env.COVERAGE_MIN }}%. Atingido: ${{ steps.coverage.outputs.coverage }}%"
           exit 1
+      
   generate-certificate: # DAQUI PARA BAIXO, NÃO ALTERAR
       name: "Desafio Nível 2 - Certificado"
       runs-on: ubuntu-latest
