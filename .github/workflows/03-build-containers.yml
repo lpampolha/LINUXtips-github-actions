@@ -17,11 +17,49 @@ env:
 jobs:
   build-scan-and-push:
     name: "Build, Lint, Trivy Scan e Push no GHCR"
-    if: #????
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-      # AQUI VAI O CÓDIGO DO DESAFIO :)
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build da imagem Docker
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Lint do Dockerfile com Hadolint
+        run: |
+          hadolint Dockerfile --format tty | tee lint-report.txt
+          if grep -q "DL3006\|DL3008" lint-report.txt; then
+            exit 1
+          fi
+
+      - name: Scan de vulnerabilidades com Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          format: sarif
+          output: trivy-report.txt
+          severity: CRITICAL
+          exit-code: 1
+
+      - name: Publicar imagem no GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
   generate-certificate: # DAQUI PARA BAIXO, NÃO ALTERAR
     name: "Desafio Nível 3 - Certificado"
