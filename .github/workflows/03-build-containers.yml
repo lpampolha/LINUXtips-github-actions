@@ -3,7 +3,8 @@ name: "Nível 3: Containers e Segurança"
 on:
   pull_request:
     types: [closed]
-    branches: [ desafio-nivel-3 ]
+    branches:
+      - desafio-nivel-3
 
 permissions:
   contents: read
@@ -19,7 +20,6 @@ jobs:
     name: "Build, Lint, Trivy Scan e Push no GHCR"
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
@@ -61,7 +61,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-  generate-certificate: # DAQUI PARA BAIXO, NÃO ALTERAR
+      - name: Upload do relatório de lint
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: lint-report.txt
+
+      - name: Upload do relatório de vulnerabilidades
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+
+  generate-certificate:
     name: "Desafio Nível 3 - Certificado"
     needs: build-scan-and-push
     if: success()
@@ -72,29 +84,22 @@ jobs:
           mkdir -p certificates
           cat > certificates/level-3-certificate.md << EOF
           # Certificado de Conclusão - Nível 3
-
           **Descomplicando Github Actions - GitHub Actions Edition**
           ---
-
           Este certificado atesta que **${{ github.actor }}** concluiu com sucesso:
           ## Nível 3: Containers e Segurança
-
           **Competências desenvolvidas:**
           - Build de imagem Docker
           - Lint de Dockerfile com Hadolint
           - Scan de vulnerabilidades com Trivy (CRITICAL = 0)
           - Relatório de vulnerabilidades como artefato
-          - Smoke test de execução do container
           - Publicação no GitHub Container Registry (GHCR) condicionada ao scan
           - Boas práticas de supply chain
-
           **Data de conclusão:** $(date)
           **Repositório:** ${{ github.repository }}
           **Workflow:** ${{ github.run_id }}
-
           ---
           **Badge conquistado:** Containers e Segurança
-
           ---
           *Certificado gerado automaticamente pelo GitHub Actions*
           *LINUXtips*
