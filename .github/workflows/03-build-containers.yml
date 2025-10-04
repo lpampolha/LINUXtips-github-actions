@@ -64,7 +64,7 @@ jobs:
       - name: Upload do relatório de lint
         uses: actions/upload-artifact@v4
         with:
-          name: lint-report
+          name
           path: lint-report.txt
 
       - name: Upload do relatório de vulnerabilidades
