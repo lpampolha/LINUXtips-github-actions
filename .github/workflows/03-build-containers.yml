@@ -4,20 +4,7 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - desafio-nivel-3
 
-permissions:
-  contents: read
-  packages: write
-
-env:
-  CHALLENGE_LEVEL: 3
-  CHALLENGE_NAME: "containers-e-seguranca"
-  REGISTRY: ghcr.io
-
-jobs:
-  build-scan-and-push:
-    name: "Build, Lint, Trivy Scan e Push no GHCR"
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
