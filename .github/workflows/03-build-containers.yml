@@ -3,10 +3,10 @@ name: "Nível 3: Containers e Segurança"
 on:
   pull_request:
     types: [closed]
-    branches: [desafio-nivel-3]
+    branches:
+      - main
+      - desafio-nivel-3
 
-jobs:
-  build-scan-and-push:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
