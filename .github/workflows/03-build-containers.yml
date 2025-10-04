@@ -7,16 +7,23 @@ on:
       - main
       - desafio-nivel-3
 
+permissions:
+  contents: read
+  packages: write
+
+env:
+  CHALLENGE_LEVEL: 3
+  CHALLENGE_NAME: "containers-e-seguranca"
+  REGISTRY: ghcr.io
+
+jobs:
+  build-scan-and-push:
+    name: "Build, Lint, Trivy Scan e Push no GHCR"
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
-
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Login no GHCR
         uses: docker/login-action@v3
@@ -25,82 +32,81 @@ on:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build da imagem Docker
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }} .
+
       - name: Lint do Dockerfile com Hadolint
         run: |
-          docker run --rm -i hadolint/hadolint < Dockerfile > lint-report.txt 2>&1 || true
-          if grep -q 'DL3006\|DL3008' lint-report.txt; then
-            echo "::error::Falha no lint: DL3006 (Always tag versions) ou DL3008 (Pin versions) detectados"
+          hadolint Dockerfile --format tty | tee lint-report.txt
+          if grep -q "DL3006\|DL3008" lint-report.txt; then
             exit 1
           fi
-
-      - name: Build da imagem Docker
-        uses: docker/build-push-action@v6
-        id: build
-        with:
-          context: .
-          tags: |
-            ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(vars.IMAGE_NAME) }}:${{ github.sha }}
-          outputs: type=image,name=ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(vars.IMAGE_NAME) }}
 
       - name: Scan de vulnerabilidades com Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(vars.IMAGE_NAME) }}:${{ github.sha }}
-          format: table
-          exit-code: 1
-          severity: CRITICAL
-          ignore-unfixed: true
+          image-ref: ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          format: sarif
           output: trivy-report.txt
+          severity: CRITICAL
+          exit-code: 1
 
       - name: Publicar imagem no GHCR
-        if: success()
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
-          tags: ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(vars.IMAGE_NAME) }}:${{ github.sha }}
+          tags: ghcr.io/${{ github.actor }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload de relatórios
+      - name: Upload do relatório de lint
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
-          path: |
-            lint-report.txt
-            trivy-report.txt
+          name: lint-report
+          path: lint-report.txt
+
+      - name: Upload do relatório de vulnerabilidades
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
 
   generate-certificate:
     name: "Desafio Nível 3 - Certificado"
-    needs: [build-scan-and-push]
+    needs: build-scan-and-push
     if: success()
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Gerar certificado
+      - name: "Gerar certificado"
         run: |
           mkdir -p certificates
           cat > certificates/level-3-certificate.md << EOF
           # Certificado de Conclusão - Nível 3
           **Descomplicando Github Actions - GitHub Actions Edition**
           ---
-          **Participante:** ${{ github.actor }}
+          Este certificado atesta que **${{ github.actor }}** concluiu com sucesso:
+          ## Nível 3: Containers e Segurança
+          **Competências desenvolvidas:**
+          - Build de imagem Docker
+          - Lint de Dockerfile com Hadolint
+          - Scan de vulnerabilidades com Trivy (CRITICAL = 0)
+          - Relatório de vulnerabilidades como artefato
+          - Publicação no GitHub Container Registry (GHCR) condicionada ao scan
+          - Boas práticas de supply chain
+          **Data de conclusão:** $(date)
           **Repositório:** ${{ github.repository }}
-          **Commit:** ${{ github.sha }}
-          **Data:** $(date +"%d/%m/%Y %H:%M:%S")
-          
-          ## Competências validadas:
-          - Build seguro de imagens Docker
-          - Análise estática de Dockerfile (Hadolint)
-          - Varredura de vulnerabilidades (Trivy)
-          - Publicação condicional no GHCR
-          - Gestão de artefatos de segurança
-          
-          **Workflow ID:** ${{ github.run_id }}
-          **Status:** Aprovado com sucesso
+          **Workflow:** ${{ github.run_id }}
           ---
-          *Emitido automaticamente via GitHub Actions*
-          *LINUXtips | Supply Chain Security*
+          **Badge conquistado:** Containers e Segurança
+          ---
+          *Certificado gerado automaticamente pelo GitHub Actions*
+          *LINUXtips*
           EOF
 
-      - name: Upload do certificado
+      - name: "Upload do certificado"
         uses: actions/upload-artifact@v4
         with:
           name: level-3-certificate
